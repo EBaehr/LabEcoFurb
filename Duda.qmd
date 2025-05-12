@@ -1,0 +1,154 @@
+---
+title: "Eduarda Baehr"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+
+library(tidyverse)
+library(WDI)
+library(dplyr)
+
+options(scipen = 999) # REMOVER A NOT. CIENT.
+# DADOS EM PAINEL
+femaleOOS <- WDI(country = 'all',
+                indicator = 'SE.SEC.UNER.LO.FE.ZS')
+
+paises <- c('BR', 'US')
+
+# CORTE TRANSVERSAL
+femaleOOS23 <- WDI(country = 'all',
+                    indicator = 'SE.SEC.UNER.LO.FE.ZS',
+                    start = 2023, end = 2023)
+
+# SÉRIE TEMPORAL
+femaleOOSBR<- WDI(country = 'BR',
+                  indicator = 'SE.SEC.UNER.LO.FE.ZS')
+```
+
+## Variável
+
+O indicador escolhido para trabalhar com neste trabalho foi pego no WDI - World Development Indicators, e é o indicador SE.SEC.UNER.LO.FE.ZS.\
+O indicador citado representa a proporção de mulheres entre 15 e 24 anos que estão fora da escola/instituições de ensino. Ele nos traz a referência para fins de comparação, onde podemos avaliar as proporções de desigualdade de gênero ao acesso à educação e à formação técnica.
+
+## Gráfico de Dados em Painel
+
+O **gráfico de dados em painel** é ideal para visualizar informações ao longo do tempo em várias unidades. Com os dados de **FemaleOOS** (proporção de mulheres fora da escola ou treinamento), é possível visualizar a evolução ao longo dos anos para diferentes países.
+
+```{r}
+#| label: graficodadosempainel
+#| warning: false
+#| echo: false
+
+# Baixar dados para todos os países (últimos anos com dados)
+femaleOOS <- WDI(country = "all",
+                 indicator = "SE.SEC.UNER.LO.FE.ZS",
+                 start = 2015,
+                 end = 2022,
+                 extra = TRUE)
+
+# Limpar: remover agregados e NAs
+femaleOOS_clean <- femaleOOS %>%
+  filter(region != "Aggregates", !is.na(SE.SEC.UNER.LO.FE.ZS))
+
+# Selecionar o último ano com dado disponível para cada país
+femaleOOS_latest <- femaleOOS_clean %>%
+  group_by(country) %>%
+  filter(year == max(year)) %>%
+  ungroup()
+
+# Pegar a taxa do Brasil
+taxa_brasil <- femaleOOS_latest %>%
+  filter(country == "Brazil") %>%
+  pull(SE.SEC.UNER.LO.FE.ZS)
+
+# Selecionar 10 países com taxas maiores e 10 com taxas menores que o Brasil
+melhores <- femaleOOS_latest %>%
+  filter(SE.SEC.UNER.LO.FE.ZS < taxa_brasil) %>%
+  arrange(SE.SEC.UNER.LO.FE.ZS) %>%
+  head(10)
+
+piores <- femaleOOS_latest %>%
+  filter(SE.SEC.UNER.LO.FE.ZS > taxa_brasil) %>%
+  arrange(desc(SE.SEC.UNER.LO.FE.ZS)) %>%
+  head(10)
+
+# Incluir Brasil nos dados e criar coluna de destaque
+comparacao <- bind_rows(melhores, 
+                        femaleOOS_latest %>% filter(country == "Brazil"), 
+                        piores) %>%
+  mutate(destaque = ifelse(country == "Brazil", "Brasil", "Outros"))
+
+# Gráfico de barras
+ggplot(comparacao, aes(x = reorder(country, SE.SEC.UNER.LO.FE.ZS), 
+                       y = SE.SEC.UNER.LO.FE.ZS, 
+                       fill = destaque)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  scale_fill_manual(values = c("Brasil" = "red", "Outros" = "steelblue")) +
+  labs(title = "Comparação da Proporção de Mulheres Fora da Escola (último ano disponível)",
+       x = "Países",
+       y = "% Fora da Escola no Ensino Secundário") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+## Gráfico de Dados de Corte Transversal
+
+Um **corte transversal** mostra os dados em um ponto específico no tempo (neste caso, 2023). Para esse gráfico, podemos comparar diferentes países no mesmo ano, 2023, para ver qual país tem a maior ou menor proporção de mulheres fora da escola.
+
+```{r}
+#| label: graficodadoscortetransversal
+#| warning: false 
+#| echo: false
+
+ femaleOOS23 <- WDI(country = "all",
+                   indicator = "SE.SEC.UNER.LO.FE.ZS",
+                   start = 2023, end = 2023)
+ 
+ femaleOOS23_validos <- femaleOOS23 %>%
+  filter(!is.na(SE.SEC.UNER.LO.FE.ZS)) %>%
+  arrange(desc(SE.SEC.UNER.LO.FE.ZS)) %>%
+  head(10)
+ 
+ femaleOOS23_validos$highlight <- ifelse(femaleOOS23_validos$country == "BRA", "Brazil", "Other")
+
+ggplot(femaleOOS23_validos, 
+       mapping = aes(x = country, y = SE.SEC.UNER.LO.FE.ZS, color = highlight)) + 
+  geom_point(size = 4) +
+  scale_color_manual(values = c("Brazil" = "red", "Other" = "blue")) +  # Definindo as cores
+  labs(x = "Países", y = "Proporção de Mulheres Fora da Escola (%)", title = "Proporção de Mulheres Fora da Escola por País (2023)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Gráfico de Dados Série Temporal
+
+Por fim, um **gráfico de série temporal** mostrando os dados do Brasil ao longo do tempo pode ajudar a analisar a evolução dessa variável no país. Aqui, o objetivo é observar como a situação das mulheres fora da escola tem mudado no Brasil ao longo dos anos.
+
+```{r}
+#| label: graficodadosserietemporal
+#| warning: false  
+#| echo: false   
+
+ # Baixar os dados para o Brasil com todos os anos disponíveis
+femaleOOSBR <- WDI(country = "BR",
+                   indicator = "SE.SEC.UNER.LO.FE.ZS",
+                   start = 2000,
+                   end = 2022)
+
+# Remover anos com valores NA
+femaleOOSBR_clean <- femaleOOSBR %>%
+  filter(!is.na(SE.SEC.UNER.LO.FE.ZS))
+
+# Criar gráfico de série temporal
+ggplot(femaleOOSBR_clean, aes(x = year, y = SE.SEC.UNER.LO.FE.ZS)) +
+  geom_line(color = "red", size = 1.2) +
+  geom_point(color = "red", size = 2) +
+  labs(title = "Brasil - Mulheres Fora da Escola no Ensino Secundário",
+       x = "Ano",
+       y = "% Fora da Escola") +
+  theme_minimal()
+```
