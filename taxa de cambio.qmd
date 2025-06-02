@@ -1,0 +1,76 @@
+---
+title: "Taxa de Câmbio"
+format: html
+editor: visual
+---
+
+## Taxa de Câmbio
+
+A **taxa de câmbio** é um indicador econômico fundamental que representa o valor de uma moeda em relação a outra, geralmente o real (R\$) em relação ao dólar americano (US\$). Essa variável reflete diretamente a dinâmica do comércio exterior, investimentos estrangeiros, inflação e competitividade econômica de um país. Variações na taxa de câmbio influenciam preços de importação e exportação, custos de produção e o poder de compra dos consumidores, impactando diversos setores da economia. Por isso, acompanhar a evolução da taxa de câmbio ao longo do tempo permite analisar os efeitos de políticas econômicas, crises financeiras e tendências globais no mercado nacional, sendo essencial para tomada de decisões em negócios, planejamento econômico e formulação de políticas públicas.
+
+## Gráfico
+
+O gráfico desenvolvido no R apresenta a evolução animada do acumulado da taxa de câmbio ao longo de cada ano, com os dados organizados por mês. Essa visualização permite observar de forma clara como a variação cambial se acumula mensalmente dentro de cada ano, facilitando a identificação de tendências, picos e períodos de maior volatilidade. A animação destaca ano a ano a progressão do acumulado, evidenciando mudanças econômicas e eventos que impactaram o valor do câmbio em diferentes períodos. Além disso, o gráfico utiliza uma escala ajustada no eixo Y para tornar mais visíveis as variações, e um título dinâmico que indica o ano exibido, o que torna a análise mais interativa e intuitiva.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+library(GetBCBData)
+library(dplyr)
+library(lubridate)
+library(plotly)
+
+df <- gbcbd_get_series(
+  id = c(cambio = 1),
+  first.date = "1986-03-06",
+  last.date = Sys.Date(),
+  format.data = "long"
+)
+
+df <- df %>%
+  mutate(
+    ano = year(ref.date),
+    mes = month(ref.date)
+  ) %>%
+  arrange(ref.date) %>%
+  group_by(ano) %>%
+  mutate(acumulado_ano = cumsum(value)) %>%
+  ungroup()
+
+y_min <- min(df$acumulado_ano, na.rm = TRUE) * -0.95
+y_max <- max(df$acumulado_ano, na.rm = TRUE) * 0.95
+
+plot_ly(
+  data = df,
+  x = ~mes,
+  y = ~acumulado_ano,
+  frame = ~ano,
+  type = 'scatter',
+  mode = 'lines+markers',
+  line = list(color = '#2E86C1'),
+  marker = list(size = 6)
+) %>%
+  layout(
+    title = list(text = "📈 Acumulado Anual da Taxa de Câmbio (Ano: %{frame})", x = 0.5),
+    xaxis = list(
+      title = "Mês",
+      tickmode = "array",
+      tickvals = 1:12,
+      ticktext = month.abb
+    ),
+    yaxis = list(
+      title = "Acumulado",
+      range = c(y_min, y_max)
+    ),
+    hovermode = "x unified",
+    showlegend = FALSE
+  ) %>%
+  animation_opts(frame = 1000, transition = 500, redraw = TRUE, mode = "immediate") %>%
+  animation_slider(currentvalue = list(prefix = "Ano: ", font = list(size = 18, color = "#2980B9"))) %>%
+  animation_button(x = 1, xanchor = "right", y = 0, yanchor = "bottom")
+
+
+
+```
